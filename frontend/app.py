@@ -1,6 +1,23 @@
 import streamlit as st
 import sys
 import os
+import subprocess
+import time
+import socket
+
+# Start the backend server if not running
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+if not is_port_in_use(5000):
+    backend_app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend', 'app.py'))
+    if os.path.exists(backend_app_path):
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        backend_dir = os.path.dirname(backend_app_path)
+        subprocess.Popen([sys.executable, "app.py"], env=env, cwd=backend_dir)
+        time.sleep(2)  # Give the backend a moment to start
 
 sys.path.append(os.path.dirname(__file__))
 from utils.api_client import get_scan_history, get_health
