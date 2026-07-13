@@ -8,7 +8,7 @@ import socket
 # Start the backend server if not running
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('localhost', port)) == 0
+        return s.connect_ex(('127.0.0.1', port)) == 0
 
 if not is_port_in_use(5000):
     backend_app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend', 'app.py'))
@@ -16,8 +16,9 @@ if not is_port_in_use(5000):
         env = os.environ.copy()
         env["PYTHONPATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         backend_dir = os.path.dirname(backend_app_path)
-        subprocess.Popen([sys.executable, "app.py"], env=env, cwd=backend_dir)
-        time.sleep(2)  # Give the backend a moment to start
+        log_file = open(os.path.join(os.path.dirname(__file__), '..', 'backend_startup.log'), 'a')
+        subprocess.Popen([sys.executable, "app.py"], env=env, cwd=backend_dir, stdout=log_file, stderr=subprocess.STDOUT)
+        time.sleep(3)  # Give the backend a moment to start
 
 sys.path.append(os.path.dirname(__file__))
 from utils.api_client import get_scan_history, get_health
@@ -79,7 +80,16 @@ Select a module from the left sidebar to begin protecting your digital life.
 
 # Live stats from backend
 health = get_health()
-history_data = get_scan_history(limit=100)
+
+if health is None:
+    st.error("Backend Server is Offline or Failed to Start.")
+    log_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend_startup.log'))
+    if os.path.exists(log_path):
+        st.subheader("Backend Startup Logs")
+        with open(log_path, 'r') as f:
+            st.code(f.read(), language="bash")
+        
+history_data = get_scan_history(limit=100) if health else {}
 history = history_data.get('history', [])
 total_scans = len(history)
 threats = len([h for h in history if h.get('risk_level') in ('High', 'Critical')])
